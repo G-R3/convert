@@ -104,160 +104,122 @@ function App() {
 	};
 
 	return (
-		<main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8">
-			<section className="rounded-[32px] border border-white/10 bg-slate-950/70 p-4 shadow-2xl shadow-black/20 backdrop-blur">
-				<div className="grid gap-6 lg:grid-cols-[1.5fr_0.9fr]">
-					<div className="space-y-5 rounded-[28px] bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.16),transparent_32%),linear-gradient(160deg,rgba(15,23,42,0.96),rgba(2,6,23,0.96))] p-5 sm:p-7">
-						<div className="space-y-3">
-							<p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-100/70">
-								Film scan workflow
-							</p>
-							<h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-								Convert TIFF files locally with quality-first defaults.
-							</h1>
-							<p className="max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-								Drop in a batch of film scans, convert them in parallel to JPEG
-								or PNG, and download each file on its own or grab everything at
-								once when the queue finishes. Nothing is uploaded to a remote
-								service.
-							</p>
-						</div>
+		<main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-6 py-16 sm:px-8 sm:py-24">
+			<header className="animate-fade-in animate-fade-in-1">
+				<h1 className="font-serif text-5xl tracking-tight text-text sm:text-6xl">
+					convert.
+				</h1>
+				<p className="mt-4 max-w-md text-sm leading-relaxed text-text-secondary">
+					A quiet tool for transforming film scans.
+					<br />
+					Local. Parallel. Nothing leaves your machine.
+				</p>
+			</header>
 
-						<Dropzone disabled={false} onFilesSelected={addFiles} />
+			<hr className="my-10 border-t border-border sm:my-14" />
+
+			<section className="animate-fade-in animate-fade-in-2">
+				<div className="flex items-center gap-6">
+					<span className="text-xs uppercase tracking-[0.2em] text-text-muted">
+						Output
+					</span>
+					<div className="flex gap-1">
+						{outputFormats.map((value) => {
+							const isSelected = value === format;
+							return (
+								<button
+									key={value}
+									className={[
+										"px-4 py-2 text-sm transition-colors duration-200",
+										isSelected
+											? "bg-accent text-bg"
+											: "text-text-secondary hover:text-text",
+									].join(" ")}
+									disabled={isConverting}
+									onClick={() => setFormat(value)}
+									type="button"
+								>
+									{value.toUpperCase()}
+								</button>
+							);
+						})}
 					</div>
-
-					<aside className="space-y-4 rounded-[28px] border border-white/8 bg-white/[0.04] p-5">
-						<div className="space-y-2">
-							<p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
-								Output
-							</p>
-							<div className="grid grid-cols-2 gap-2">
-								{outputFormats.map((value) => {
-									const isSelected = value === format;
-
-									return (
-										<button
-											key={value}
-											className={[
-												"rounded-2xl px-4 py-3 text-sm font-semibold transition",
-												isSelected
-													? "bg-cyan-300 text-slate-950"
-													: "bg-white/6 text-slate-200 hover:bg-white/10",
-											].join(" ")}
-											disabled={isConverting}
-											onClick={() => setFormat(value)}
-											type="button"
-										>
-											{value.toUpperCase()}
-										</button>
-									);
-								})}
-							</div>
-						</div>
-
-						<div className="rounded-3xl border border-white/8 bg-black/10 p-4">
-							<p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
-								Quality defaults
-							</p>
-							<ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
-								<li>
-									JPEG uses high quality, progressive output, and 4:4:4 chroma.
-								</li>
-								<li>
-									PNG stays lossless with light compression for faster batches.
-								</li>
-								<li>Orientation and metadata are preserved when supported.</li>
-							</ul>
-						</div>
-
-						<div className="rounded-3xl border border-white/8 bg-black/10 p-4">
-							<p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
-								Queue summary
-							</p>
-							<div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-								<SummaryCard label="Total" value={queueSummary.total} />
-								<SummaryCard label="Queued" value={queueSummary.queued} />
-								<SummaryCard
-									label="Processing"
-									value={queueSummary.processing}
-								/>
-								<SummaryCard label="Done" value={queueSummary.done} />
-							</div>
-							{queueSummary.failed > 0 ? (
-								<p className="mt-3 text-sm text-rose-200">
-									{queueSummary.failed} file
-									{queueSummary.failed === 1 ? "" : "s"} failed. Retry them from
-									the queue below.
-								</p>
-							) : null}
-						</div>
-
-						<div className="rounded-3xl border border-cyan-300/10 bg-cyan-300/[0.06] p-4 text-sm leading-6 text-slate-300">
-							Converted files are cached locally in memory for download while
-							this app stays open.
-						</div>
-					</aside>
 				</div>
 			</section>
 
-			<section className="space-y-4 rounded-[28px] border border-white/10 bg-slate-950/55 p-5 backdrop-blur">
-				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-					<div>
-						<h2 className="text-xl font-semibold text-white">
-							Conversion queue
-						</h2>
-						<p className="text-sm text-slate-400">
-							Queued files begin converting automatically and run in parallel.
-						</p>
-					</div>
-					<DownloadActions
-						cacheIds={doneItems.flatMap((item) =>
-							item.result ? [item.result.cacheId] : [],
-						)}
-						doneCount={doneItems.length}
-					/>
-				</div>
-
-				{notice ? (
-					<div className="rounded-2xl border border-cyan-300/10 bg-cyan-300/[0.06] px-4 py-3 text-sm text-cyan-50">
-						{notice}
-					</div>
-				) : null}
-
-				<ConversionList
-					items={items}
-					onRemove={(itemId) => {
-						setItems((currentItems) =>
-							currentItems.filter((item) => item.id !== itemId),
-						);
-					}}
-					onRetry={(itemId) => {
-						setItems((currentItems) =>
-							currentItems.map((item) =>
-								item.id === itemId
-									? {
-											...item,
-											errorMessage: undefined,
-											result: undefined,
-											status: "queued",
-										}
-									: item,
-							),
-						);
-					}}
-				/>
+			<section className="animate-fade-in animate-fade-in-3 mt-10">
+				<Dropzone disabled={false} onFilesSelected={addFiles} />
 			</section>
+
+			{notice ? (
+				<div className="animate-fade-in mt-6 border-l-2 border-accent pl-4 text-sm text-text-secondary">
+					{notice}
+				</div>
+			) : null}
+
+			{items.length > 0 ? (
+				<>
+					<hr className="my-10 border-t border-border sm:my-14" />
+
+					<section className="animate-fade-in animate-fade-in-4">
+						<div className="flex items-baseline justify-between">
+							<div className="flex items-baseline gap-4">
+								<h2 className="font-serif text-2xl text-text">
+									Queue
+								</h2>
+								<span className="text-sm text-text-muted">
+									{queueSummary.done} of {queueSummary.total}
+								</span>
+							</div>
+							<DownloadActions
+								cacheIds={doneItems.flatMap((item) =>
+									item.result ? [item.result.cacheId] : [],
+								)}
+								doneCount={doneItems.length}
+							/>
+						</div>
+
+						{queueSummary.failed > 0 ? (
+							<p className="mt-3 text-sm text-red-400/80">
+								{queueSummary.failed} file
+								{queueSummary.failed === 1 ? "" : "s"} failed.
+							</p>
+						) : null}
+					</section>
+
+					<section className="animate-fade-in animate-fade-in-5 mt-6">
+						<ConversionList
+							items={items}
+							onRemove={(itemId) => {
+								setItems((currentItems) =>
+									currentItems.filter((item) => item.id !== itemId),
+								);
+							}}
+							onRetry={(itemId) => {
+								setItems((currentItems) =>
+									currentItems.map((item) =>
+										item.id === itemId
+											? {
+													...item,
+													errorMessage: undefined,
+													result: undefined,
+													status: "queued",
+												}
+											: item,
+									),
+								);
+							}}
+						/>
+					</section>
+				</>
+			) : null}
+
+			<footer className="mt-auto pt-20">
+				<hr className="border-t border-border" />
+				<p className="mt-6 pb-8 text-center text-xs text-text-muted">
+					convert — local tiff processing
+				</p>
+			</footer>
 		</main>
-	);
-}
-
-function SummaryCard({ label, value }: { label: string; value: number }) {
-	return (
-		<div className="rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-3">
-			<p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-				{label}
-			</p>
-			<p className="mt-2 text-2xl font-semibold text-white">{value}</p>
-		</div>
 	);
 }

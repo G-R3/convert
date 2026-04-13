@@ -8,24 +8,21 @@ interface DownloadActionsProps {
 export function DownloadActions({ doneCount, cacheIds }: DownloadActionsProps) {
 	const hasDownloads = doneCount > 0 && cacheIds.length > 0;
 
+	if (!hasDownloads) {
+		return null;
+	}
+
 	return (
-		<div className="flex flex-wrap items-center gap-3">
-			<a
-				className={[
-					"rounded-full px-4 py-2 text-sm font-semibold transition",
-					hasDownloads
-						? "bg-cyan-300 text-slate-950 hover:bg-cyan-200"
-						: "pointer-events-none bg-white/8 text-slate-500",
-				].join(" ")}
-				href={hasDownloads ? buildDownloadAllUrl(cacheIds) : undefined}
-			>
-				Download all
-			</a>
-			<span className="text-sm text-slate-400">
-				{hasDownloads
-					? `${doneCount} converted file${doneCount === 1 ? "" : "s"} ready`
-					: "Converted files will be available here once processing finishes."}
+		<a
+			className="hover-underline group inline-flex items-center gap-2 text-xs text-accent underline-offset-4"
+			href={buildDownloadAllUrl(cacheIds)}
+		>
+			<span>
+				Download all — {doneCount} file{doneCount === 1 ? "" : "s"}
 			</span>
-		</div>
+			<span className="inline-block transition-transform duration-200 group-hover:translate-x-0.5">
+				&rarr;
+			</span>
+		</a>
 	);
 }

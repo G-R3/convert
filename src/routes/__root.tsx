@@ -15,7 +15,7 @@ export const Route = createRootRoute({
 				name: "viewport",
 			},
 			{
-				title: "Convert | Local TIFF Converter",
+				title: "convert — local tiff processing",
 			},
 			{
 				content:
@@ -26,6 +26,19 @@ export const Route = createRootRoute({
 		links: [
 			{
 				href: appCss,
+				rel: "stylesheet",
+			},
+			{
+				href: "https://fonts.googleapis.com",
+				rel: "preconnect",
+			},
+			{
+				href: "https://fonts.gstatic.com",
+				rel: "preconnect",
+				crossOrigin: "anonymous",
+			},
+			{
+				href: "https://fonts.googleapis.com/css2?family=Instrument+Serif&family=IBM+Plex+Mono:wght@400;500;600&display=swap",
 				rel: "stylesheet",
 			},
 		],
@@ -39,8 +52,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 			<head>
 				<HeadContent />
 			</head>
-			<body className="font-sans antialiased [overflow-wrap:anywhere] selection:bg-cyan-300/25">
-				<div className="pointer-events-none fixed inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-cyan-200/30 to-transparent" />
+			<body className="font-mono antialiased wrap-anywhere">
 				{children}
 				<TanStackDevtools
 					config={{
