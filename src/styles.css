@@ -102,14 +102,6 @@ code {
 	animation: pulse-subtle 2s ease-in-out infinite;
 }
 
-.hover-underline {
-	background-image: linear-gradient(currentColor, currentColor);
-	background-size: 0% 1px;
-	background-position: 0 100%;
-	background-repeat: no-repeat;
-	transition: background-size 0.3s ease;
-}
-
 .hover-underline:hover {
-	background-size: 100% 1px;
+	text-decoration: underline;
 }

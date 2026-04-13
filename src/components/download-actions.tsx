@@ -14,15 +14,10 @@ export function DownloadActions({ doneCount, cacheIds }: DownloadActionsProps) {
 
 	return (
 		<a
-			className="hover-underline group inline-flex items-center gap-2 text-xs text-accent underline-offset-4"
+			className="hover-underline text-xs text-accent underline-offset-4"
 			href={buildDownloadAllUrl(cacheIds)}
 		>
-			<span>
-				Download all — {doneCount} file{doneCount === 1 ? "" : "s"}
-			</span>
-			<span className="inline-block transition-transform duration-200 group-hover:translate-x-0.5">
-				&rarr;
-			</span>
+			Download all — {doneCount} file{doneCount === 1 ? "" : "s"}
 		</a>
 	);
 }
