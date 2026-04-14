@@ -1,5 +1,9 @@
 import { convertFile } from "./api";
-import type { ConversionQueueItem, OutputFormat } from "./types";
+import type {
+	ConversionQueueItem,
+	ConversionQueueItemPatch,
+	OutputFormat,
+} from "./types";
 
 export const CLIENT_CONCURRENCY = 4;
 
@@ -40,12 +44,7 @@ interface RunConversionQueueOptions {
 	concurrency?: number;
 	format: OutputFormat;
 	items: ConversionQueueItem[];
-	onItemUpdate: (
-		itemId: string,
-		patch: Partial<
-			Pick<ConversionQueueItem, "errorMessage" | "result" | "status">
-		>,
-	) => void;
+	onItemUpdate: (itemId: string, patch: ConversionQueueItemPatch) => void;
 }
 
 export async function runConversionQueue({

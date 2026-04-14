@@ -23,3 +23,7 @@ export interface ConversionQueueItem {
 	result?: ConvertedFileResult;
 	status: QueueStatus;
 }
+
+export type ConversionQueueItemPatch = Partial<
+	Pick<ConversionQueueItem, "errorMessage" | "result" | "status">
+>;

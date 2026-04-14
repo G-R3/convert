@@ -10,7 +10,11 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ConversionQueueItem, ConvertedFileResult } from "../lib/types";
+import type {
+	ConversionQueueItem,
+	ConversionQueueItemPatch,
+	ConvertedFileResult,
+} from "../lib/types";
 
 const { pendingRuns, runConversionQueueMock, uploadSequence } = vi.hoisted(
 	() => ({
@@ -24,14 +28,23 @@ vi.mock("../components/conversion-list", () => ({
 	ConversionList: ({
 		items,
 		onRemove,
+		onRetry,
 	}: {
-		items: Array<Pick<ConversionQueueItem, "file" | "id" | "status">>;
+		items: Array<
+			Pick<ConversionQueueItem, "errorMessage" | "file" | "id" | "status">
+		>;
 		onRemove: (itemId: string) => void;
+		onRetry: (itemId: string) => void;
 	}) => (
 		<ul>
 			{items.map((item) => (
 				<li key={item.id}>
 					{item.file.name}:{item.status}
+					{item.status === "failed" ? (
+						<button onClick={() => onRetry(item.id)} type="button">
+							retry {item.file.name}
+						</button>
+					) : null}
 					<button onClick={() => onRemove(item.id)} type="button">
 						remove {item.file.name}
 					</button>
@@ -125,12 +138,7 @@ describe("App queue flow", () => {
 				onItemUpdate,
 			}: {
 				items: ConversionQueueItem[];
-				onItemUpdate: (
-					itemId: string,
-					patch: Partial<
-						Pick<ConversionQueueItem, "errorMessage" | "result" | "status">
-					>,
-				) => void;
+				onItemUpdate: (itemId: string, patch: ConversionQueueItemPatch) => void;
 			}) => {
 				const queuedItems = items.filter((item) => item.status === "queued");
 
@@ -204,5 +212,87 @@ describe("App queue flow", () => {
 		await waitFor(() => {
 			expect(screen.queryByText("Converted 1 file.")).toBeNull();
 		});
+	});
+
+	it("retries a failed item and resumes automatic processing", async () => {
+		runConversionQueueMock
+			.mockImplementationOnce(
+				async ({
+					items,
+					onItemUpdate,
+				}: {
+					items: ConversionQueueItem[];
+					onItemUpdate: (
+						itemId: string,
+						patch: ConversionQueueItemPatch,
+					) => void;
+				}) => {
+					const queuedItems = items.filter((item) => item.status === "queued");
+
+					for (const item of queuedItems) {
+						onItemUpdate(item.id, {
+							errorMessage: undefined,
+							result: undefined,
+							status: "processing",
+						});
+					}
+
+					for (const item of queuedItems) {
+						onItemUpdate(item.id, {
+							errorMessage: "Conversion failed.",
+							result: undefined,
+							status: "failed",
+						});
+					}
+				},
+			)
+			.mockImplementationOnce(
+				async ({
+					items,
+					onItemUpdate,
+				}: {
+					items: ConversionQueueItem[];
+					onItemUpdate: (
+						itemId: string,
+						patch: ConversionQueueItemPatch,
+					) => void;
+				}) => {
+					const queuedItems = items.filter((item) => item.status === "queued");
+
+					for (const item of queuedItems) {
+						onItemUpdate(item.id, {
+							errorMessage: undefined,
+							result: undefined,
+							status: "processing",
+						});
+					}
+
+					for (const item of queuedItems) {
+						onItemUpdate(item.id, {
+							errorMessage: undefined,
+							result: createResult(item.file),
+							status: "done",
+						});
+					}
+				},
+			);
+
+		render(<App />);
+
+		fireEvent.click(screen.getByRole("button", { name: "Upload TIFF" }));
+
+		expect(
+			await screen.findByText("1 file failed and can be retried."),
+		).toBeTruthy();
+		expect(screen.getByText("scan-1.tif:failed")).toBeTruthy();
+		expect(runConversionQueueMock).toHaveBeenCalledTimes(1);
+
+		fireEvent.click(screen.getByRole("button", { name: "retry scan-1.tif" }));
+
+		await waitFor(() => {
+			expect(runConversionQueueMock).toHaveBeenCalledTimes(2);
+		});
+		expect(await screen.findByText("Converted 1 file.")).toBeTruthy();
+		expect(screen.getByText("scan-1.tif:done")).toBeTruthy();
 	});
 });

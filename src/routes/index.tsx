@@ -1,183 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ConversionList } from "../components/conversion-list";
 import { DownloadActions } from "../components/download-actions";
 import { Dropzone } from "../components/dropzone";
-import {
-	createQueueItems,
-	filterAcceptedFiles,
-	runConversionQueue,
-} from "../lib/file-queue";
-import {
-	type ConversionQueueItem,
-	type OutputFormat,
-	outputFormats,
-} from "../lib/types";
+import { outputFormats } from "../lib/types";
+import { useConversionQueue } from "../lib/use-conversion-queue";
 
 export const Route = createFileRoute("/")({ component: App });
 
-function formatCount(count: number, noun: string) {
-	return `${count} ${noun}${count === 1 ? "" : "s"}`;
-}
-
-export function buildQueueNotice({
-	dropNotice,
-	format,
-	queueSummary,
-}: {
-	dropNotice: string | null;
-	format: OutputFormat;
-	queueSummary: {
-		done: number;
-		failed: number;
-		processing: number;
-		queued: number;
-		total: number;
-	};
-}) {
-	if (queueSummary.total === 0) {
-		return dropNotice;
-	}
-
-	if (queueSummary.processing > 0) {
-		const parts = [
-			`${formatCount(queueSummary.processing, "file")} converting to ${format.toUpperCase()}`,
-		];
-
-		if (queueSummary.queued > 0) {
-			parts.push(`${formatCount(queueSummary.queued, "file")} queued`);
-		}
-
-		if (queueSummary.done > 0) {
-			parts.push(`${formatCount(queueSummary.done, "file")} complete`);
-		}
-
-		return `${parts.join(", ")}.`;
-	}
-
-	if (queueSummary.queued > 0) {
-		const prefix =
-			queueSummary.done > 0
-				? `${formatCount(queueSummary.done, "file")} complete, `
-				: "";
-
-		return `${prefix}${formatCount(queueSummary.queued, "file")} queued for ${format.toUpperCase()} conversion.`;
-	}
-
-	if (queueSummary.failed > 0) {
-		const prefix =
-			queueSummary.done > 0
-				? `${formatCount(queueSummary.done, "file")} complete. `
-				: "";
-
-		return `${prefix}${formatCount(queueSummary.failed, "file")} failed and can be retried.`;
-	}
-
-	if (queueSummary.done > 0) {
-		return `Converted ${formatCount(queueSummary.done, "file")}.`;
-	}
-
-	return dropNotice;
-}
-
 export function App() {
-	const [items, setItems] = useState<ConversionQueueItem[]>([]);
-	const [format, setFormat] = useState<OutputFormat>("jpeg");
-	const [isConverting, setIsConverting] = useState(false);
-	const [dropNotice, setDropNotice] = useState<string | null>(null);
-	const isMountedRef = useRef(true);
-
-	useEffect(() => {
-		return () => {
-			isMountedRef.current = false;
-		};
-	}, []);
-
-	useEffect(() => {
-		const hasQueuedItems = items.some((item) => item.status === "queued");
-
-		if (!hasQueuedItems || isConverting) {
-			return;
-		}
-
-		setIsConverting(true);
-
-		void runConversionQueue({
-			format,
-			items,
-			onItemUpdate: (itemId, patch) => {
-				setItems((currentItems) =>
-					currentItems.map((item) =>
-						item.id === itemId ? { ...item, ...patch } : item,
-					),
-				);
-			},
-		}).finally(() => {
-			if (isMountedRef.current) {
-				setIsConverting(false);
-			}
-		});
-	}, [format, isConverting, items]);
-
-	const doneItems = useMemo(
-		() => items.filter((item) => item.status === "done" && item.result),
-		[items],
-	);
-
-	const queueSummary = useMemo(() => {
-		return {
-			done: items.filter((item) => item.status === "done").length,
-			failed: items.filter((item) => item.status === "failed").length,
-			processing: items.filter((item) => item.status === "processing").length,
-			queued: items.filter((item) => item.status === "queued").length,
-			total: items.length,
-		};
-	}, [items]);
-
-	const notice = useMemo(
-		() =>
-			buildQueueNotice({
-				dropNotice,
-				format,
-				queueSummary,
-			}),
-		[dropNotice, format, queueSummary],
-	);
-
-	const addFiles = (incomingFiles: File[]) => {
-		const acceptedFiles = filterAcceptedFiles(incomingFiles);
-		const skippedCount = incomingFiles.length - acceptedFiles.length;
-
-		if (acceptedFiles.length > 0) {
-			setItems((currentItems) => [
-				...currentItems,
-				...createQueueItems(acceptedFiles),
-			]);
-		}
-
-		if (acceptedFiles.length === 0) {
-			setDropNotice("Only TIFF files are supported right now.");
-			return;
-		}
-
-		if (skippedCount > 0) {
-			setDropNotice(
-				`Added ${acceptedFiles.length} TIFF file${
-					acceptedFiles.length === 1 ? "" : "s"
-				}. Skipped ${skippedCount} unsupported file${
-					skippedCount === 1 ? "" : "s"
-				}.`,
-			);
-			return;
-		}
-
-		setDropNotice(
-			`Queued ${acceptedFiles.length} TIFF file${
-				acceptedFiles.length === 1 ? "" : "s"
-			} for ${format.toUpperCase()} conversion.`,
-		);
-	};
+	const {
+		addFiles,
+		doneItems,
+		format,
+		isConverting,
+		items,
+		notice,
+		queueSummary,
+		removeItem,
+		retryItem,
+		setFormat,
+	} = useConversionQueue();
 
 	return (
 		<main className="flex h-screen flex-col overflow-hidden lg:flex-row">
@@ -272,33 +115,8 @@ export function App() {
 				<section className="animate-fade-in animate-fade-in-5 mt-6 flex-1">
 					<ConversionList
 						items={items}
-						onRemove={(itemId) => {
-							setItems((currentItems) => {
-								const nextItems = currentItems.filter(
-									(item) => item.id !== itemId,
-								);
-
-								if (nextItems.length === 0) {
-									setDropNotice(null);
-								}
-
-								return nextItems;
-							});
-						}}
-						onRetry={(itemId) => {
-							setItems((currentItems) =>
-								currentItems.map((item) =>
-									item.id === itemId
-										? {
-												...item,
-												errorMessage: undefined,
-												result: undefined,
-												status: "queued",
-											}
-										: item,
-								),
-							);
-						}}
+						onRemove={removeItem}
+						onRetry={retryItem}
 					/>
 				</section>
 
