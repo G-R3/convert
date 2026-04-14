@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ConversionList } from "../components/conversion-list";
 import { DownloadActions } from "../components/download-actions";
@@ -17,11 +17,82 @@ import {
 
 export const Route = createFileRoute("/")({ component: App });
 
-function App() {
+function formatCount(count: number, noun: string) {
+	return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+export function buildQueueNotice({
+	dropNotice,
+	format,
+	queueSummary,
+}: {
+	dropNotice: string | null;
+	format: OutputFormat;
+	queueSummary: {
+		done: number;
+		failed: number;
+		processing: number;
+		queued: number;
+		total: number;
+	};
+}) {
+	if (queueSummary.total === 0) {
+		return dropNotice;
+	}
+
+	if (queueSummary.processing > 0) {
+		const parts = [
+			`${formatCount(queueSummary.processing, "file")} converting to ${format.toUpperCase()}`,
+		];
+
+		if (queueSummary.queued > 0) {
+			parts.push(`${formatCount(queueSummary.queued, "file")} queued`);
+		}
+
+		if (queueSummary.done > 0) {
+			parts.push(`${formatCount(queueSummary.done, "file")} complete`);
+		}
+
+		return `${parts.join(", ")}.`;
+	}
+
+	if (queueSummary.queued > 0) {
+		const prefix =
+			queueSummary.done > 0
+				? `${formatCount(queueSummary.done, "file")} complete, `
+				: "";
+
+		return `${prefix}${formatCount(queueSummary.queued, "file")} queued for ${format.toUpperCase()} conversion.`;
+	}
+
+	if (queueSummary.failed > 0) {
+		const prefix =
+			queueSummary.done > 0
+				? `${formatCount(queueSummary.done, "file")} complete. `
+				: "";
+
+		return `${prefix}${formatCount(queueSummary.failed, "file")} failed and can be retried.`;
+	}
+
+	if (queueSummary.done > 0) {
+		return `Converted ${formatCount(queueSummary.done, "file")}.`;
+	}
+
+	return dropNotice;
+}
+
+export function App() {
 	const [items, setItems] = useState<ConversionQueueItem[]>([]);
 	const [format, setFormat] = useState<OutputFormat>("jpeg");
 	const [isConverting, setIsConverting] = useState(false);
-	const [notice, setNotice] = useState<string | null>(null);
+	const [dropNotice, setDropNotice] = useState<string | null>(null);
+	const isMountedRef = useRef(true);
+
+	useEffect(() => {
+		return () => {
+			isMountedRef.current = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		const hasQueuedItems = items.some((item) => item.status === "queued");
@@ -30,7 +101,6 @@ function App() {
 			return;
 		}
 
-		let isCancelled = false;
 		setIsConverting(true);
 
 		void runConversionQueue({
@@ -44,14 +114,10 @@ function App() {
 				);
 			},
 		}).finally(() => {
-			if (!isCancelled) {
+			if (isMountedRef.current) {
 				setIsConverting(false);
 			}
 		});
-
-		return () => {
-			isCancelled = true;
-		};
 	}, [format, isConverting, items]);
 
 	const doneItems = useMemo(
@@ -69,6 +135,16 @@ function App() {
 		};
 	}, [items]);
 
+	const notice = useMemo(
+		() =>
+			buildQueueNotice({
+				dropNotice,
+				format,
+				queueSummary,
+			}),
+		[dropNotice, format, queueSummary],
+	);
+
 	const addFiles = (incomingFiles: File[]) => {
 		const acceptedFiles = filterAcceptedFiles(incomingFiles);
 		const skippedCount = incomingFiles.length - acceptedFiles.length;
@@ -81,12 +157,12 @@ function App() {
 		}
 
 		if (acceptedFiles.length === 0) {
-			setNotice("Only TIFF files are supported right now.");
+			setDropNotice("Only TIFF files are supported right now.");
 			return;
 		}
 
 		if (skippedCount > 0) {
-			setNotice(
+			setDropNotice(
 				`Added ${acceptedFiles.length} TIFF file${
 					acceptedFiles.length === 1 ? "" : "s"
 				}. Skipped ${skippedCount} unsupported file${
@@ -96,7 +172,7 @@ function App() {
 			return;
 		}
 
-		setNotice(
+		setDropNotice(
 			`Queued ${acceptedFiles.length} TIFF file${
 				acceptedFiles.length === 1 ? "" : "s"
 			} for ${format.toUpperCase()} conversion.`,
@@ -197,9 +273,17 @@ function App() {
 					<ConversionList
 						items={items}
 						onRemove={(itemId) => {
-							setItems((currentItems) =>
-								currentItems.filter((item) => item.id !== itemId),
-							);
+							setItems((currentItems) => {
+								const nextItems = currentItems.filter(
+									(item) => item.id !== itemId,
+								);
+
+								if (nextItems.length === 0) {
+									setDropNotice(null);
+								}
+
+								return nextItems;
+							});
 						}}
 						onRetry={(itemId) => {
 							setItems((currentItems) =>
