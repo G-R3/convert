@@ -32,7 +32,7 @@ export function App() {
 							convert.
 						</h1>
 						<p className="mt-4 text-sm text-text-secondary">
-							fast TIFF to JPEG or PNG, locally.
+							fast TIFF to JPEG or PNG.
 						</p>
 					</header>
 

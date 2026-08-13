@@ -19,7 +19,7 @@ export const Route = createRootRoute({
 			},
 			{
 				content:
-					"Convert TIFF scans to JPEG or PNG locally with parallel processing and bulk downloads.",
+					"Convert TIFF scans to JPEG or PNG with parallel processing and bulk downloads.",
 				name: "description",
 			},
 		],
